@@ -31,7 +31,9 @@ class Likes(db.Model):
     """Mapping user likes to warbles."""
 
     __tablename__ = 'likes' 
-
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'message_id', name='unique_user_message'),
+    )
     id = db.Column(
         db.Integer,
         primary_key=True
@@ -45,7 +47,6 @@ class Likes(db.Model):
     message_id = db.Column(
         db.Integer,
         db.ForeignKey('messages.id', ondelete='cascade'),
-        unique=True
     )
 
 
