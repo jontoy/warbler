@@ -151,8 +151,28 @@ def users_show(user_id):
                 .order_by(Message.timestamp.desc())
                 .limit(100)
                 .all())
-    return render_template('users/show.html', user=user, messages=messages)
+    likes = [msg.id for msg in g.user.likes]
+    return render_template('users/show.html', user=user, messages=messages, likes=likes)
 
+@app.route('/users/<int:user_id>/likes')
+def show_likes(user_id):
+    """Show list of messages this user likes"""
+
+    if not g.user:
+        flash('Access unauthorized.', 'danger')
+        return redirect('/')
+    user = User.query.get_or_404(user_id)
+    user_like_ids = [msg.id for msg in user.likes]
+
+    messages = (db.session
+                .query(Message, User)
+                .join(User)
+                .filter(Message.id.in_(user_like_ids))
+                .order_by(Message.timestamp.desc())
+                .all())
+    likes = [msg.id for msg in g.user.likes]
+
+    return render_template('/users/likes.html', user=user, messages=messages, likes=likes)
 
 @app.route('/users/<int:user_id>/following')
 def show_following(user_id):
@@ -303,6 +323,41 @@ def messages_destroy(message_id):
     db.session.commit()
 
     return redirect(f"/users/{g.user.id}")
+##############################################################################
+# Like routes
+
+@app.route('/users/add_like/<int:message_id>', methods=['POST'])
+def add_like(message_id):
+    if not g.user:
+        flash('Access unauthorized.', 'danger')
+    else:
+        message = Message.query.get_or_404(message_id)
+        print(message)
+        print(g.user.likes)
+        print(message in g.user.likes)
+        if message not in g.user.likes:
+            g.user.likes.append(message)
+            db.session.add(g.user)
+            db.session.commit()
+            flash('Message successfully liked!', 'success')
+    return redirect('/')
+
+@app.route('/users/remove_like/<int:message_id>', methods=['POST'])
+def remove_like(message_id):
+    if not g.user:
+        flash('Access unauthorized.', 'danger')
+    else:
+        message = Message.query.get_or_404(message_id)
+        print(message)
+        print(g.user.likes)
+        print(message in g.user.likes)
+        if message in g.user.likes:
+            g.user.likes.remove(message)
+            db.session.add(g.user)
+            db.session.commit()
+            flash('Message successfully unliked!', 'success')
+    return redirect('/')
+
 
 
 ##############################################################################
@@ -319,14 +374,15 @@ def homepage():
 
     if g.user:
         followed_user_ids = [user.id for user in g.user.following]
-        messages = (Message
-                    .query
+        messages = (db.session
+                    .query(Message, User)
+                    .join(User)
                     .filter((Message.user_id.in_(followed_user_ids)) | (Message.user_id == g.user.id))
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
-
-        return render_template('home.html', messages=messages)
+        likes = [msg.id for msg in g.user.likes]
+        return render_template('home.html', messages=messages, likes=likes)
 
     else:
         return render_template('home-anon.html')
