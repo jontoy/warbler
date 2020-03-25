@@ -1,3 +1,4 @@
+{% from 'macros.html' import render_stats_bar, render_message %}
 {% extends 'base.html' %}
 {% block content %}
   <div class="row">
@@ -15,30 +16,7 @@
             <p>@{{ g.user.username }}</p>
           </a>
           <ul class="user-stats nav nav-pills">
-            <li class="stat">
-              <p class="small">Messages</p>
-              <h4>
-                <a href="/users/{{ g.user.id }}">{{ g.user.messages | length }}</a>
-              </h4>
-            </li>
-            <li class="stat">
-              <p class="small">Likes</p>
-              <h4>
-                <a href="/users/{{ g.user.id }}/followers">{{ g.user.likes | length }}</a>
-              </h4>
-            </li>
-            <li class="stat">
-              <p class="small">Following</p>
-              <h4>
-                <a href="/users/{{ g.user.id }}/following">{{ g.user.following | length }}</a>
-              </h4>
-            </li>
-            <li class="stat">
-              <p class="small">Followers</p>
-              <h4>
-                <a href="/users/{{ g.user.id }}/followers">{{ g.user.followers | length }}</a>
-              </h4>
-            </li>
+            {{ render_stats_bar(g.user) }}
           </ul>
         </div>
       </div>
@@ -47,7 +25,8 @@
     <div class="col-lg-6 col-md-8 col-sm-12">
       <ul class="list-group" id="messages">
         {% for message, user in messages %}
-        {% include 'partials/message_base.html' %}
+        {{ render_message(message, user)}}
+        <!-- {% include 'partials/message_base.html' %} -->
         {% endfor %}
       </ul>
     </div>

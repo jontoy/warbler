@@ -1,9 +1,10 @@
+{% from 'macros.html' import render_message %}
 {% extends 'users/detail.html' %}
 {% block user_details %}
   <div class="col-sm-6">
     <ul class="list-group" id="messages">
       {% for message, user in messages %}
-      {% include 'partials/message_base.html' %}
+        {{ render_message(message, user)}}
       {% endfor %}
     </ul>
   </div>
