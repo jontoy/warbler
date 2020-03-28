@@ -8,7 +8,7 @@
 import os
 from unittest import TestCase
 
-from models import db, connect_db, Message, User
+from models import db, connect_db, Message, User, Likes
 
 # BEFORE we import our app, let's set an environmental variable
 # to use a different database for tests (we need to do this
@@ -71,3 +71,71 @@ class MessageViewTestCase(TestCase):
 
             msg = Message.query.one()
             self.assertEqual(msg.text, "Hello")
+
+    def test_new_message_form_authorized(self):
+        """Does the new message form display to authorized users correctly?"""
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            resp = c.get("/messages/new")
+            html = resp.get_data(as_text=True)
+            self.assertEqual(resp.status_code, 200)
+
+            self.assertIn('<textarea', html)
+            self.assertIn("What", html)
+            self.assertIn("s happening?", html)
+            self.assertIn("Add my message!", html)
+    
+    def test_new_message_form_unauthorized(self):
+        """Does the new message form display to authorized users correctly?"""
+
+        with self.client as c:
+
+            resp = c.get("/messages/new")
+            self.assertEqual(resp.status_code, 302)      
+
+            resp = c.get("/messages/new", follow_redirects=True)      
+            html = resp.get_data(as_text=True)
+            self.assertEqual(resp.status_code, 200)
+
+            self.assertIn('Access unauthorized', html)
+            self.assertIn("New to Warbler?", html)
+
+    def test_show_message_self(self):
+        """Does message show route display correct info for own messages"""
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            new_message = Message(text='Hello', user_id=self.testuser.id)
+            db.session.add(new_message)
+            db.session.commit()
+
+            resp = c.get(f'/messages/{new_message.id}')
+            html = resp.get_data(as_text=True)
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Hello', html)
+            self.assertIn('Delete', html)
+            self.assertIn(f'<a href="/users/{self.testuser.id}">@{self.testuser.username}</a>', html)
+
+    def test_show_message_other(self):
+        """Does message show route display correct info for others' messages"""
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            new_user = User(username='testuser2', email='test2@test.com', password='testuser2')
+            db.session.add(new_user)
+            db.session.commit()
+            new_message = Message(text='Goodbye', user_id=new_user.id)
+            db.session.add(new_message)
+            db.session.commit()
+
+            resp = c.get(f'/messages/{new_message.id}')
+            html = resp.get_data(as_text=True)
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Goodbye', html)
+            self.assertNotIn('Delete', html)
+            self.assertIn(f'<a href="/users/{new_user.id}">@{new_user.username}</a>', html)

@@ -26,7 +26,6 @@
       <ul class="list-group" id="messages">
         {% for message, user in messages %}
         {{ render_message(message, user)}}
-        <!-- {% include 'partials/message_base.html' %} -->
         {% endfor %}
       </ul>
     </div>
