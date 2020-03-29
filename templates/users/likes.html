@@ -4,7 +4,7 @@
   <div class="col-sm-6">
     <ul class="list-group" id="messages">
       {% for message, user in messages %}
-        {{ render_message(message, user)}}
+        {{ render_message(message, user, likes)}}
       {% endfor %}
     </ul>
   </div>

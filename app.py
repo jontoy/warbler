@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, render_template, request, flash, redirect, session, g, url_for
+from flask import Flask, render_template, request, flash, redirect, session, g, url_for, jsonify
 # from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
 from functools import wraps
@@ -44,16 +44,13 @@ def add_user_to_g():
 
     if CURR_USER_KEY in session:
         g.user = User.query.get(session[CURR_USER_KEY])
-
     else:
         g.user = None
-
 
 def do_login(user):
     """Log in user."""
 
     session[CURR_USER_KEY] = user.id
-
 
 def do_logout():
     """Logout user."""
@@ -65,11 +62,8 @@ def do_logout():
 @app.route('/signup', methods=["GET", "POST"])
 def signup():
     """Handle user signup.
-
     Create new user and add to DB. Redirect to home page.
-
     If form not valid, present form.
-
     If the there already is a user with that username: flash message
     and re-present form.
     """
@@ -89,11 +83,8 @@ def signup():
         except IntegrityError:
             flash("Username already taken", 'danger')
             return render_template('users/signup.html', form=form)
-
         do_login(user)
-
         return redirect("/")
-
     else:
         return render_template('users/signup.html', form=form)
 
@@ -107,14 +98,12 @@ def login():
     if form.validate_on_submit():
         user = User.authenticate(form.username.data,
                                  form.password.data)
-
         if user:
             do_login(user)
             flash(f"Hello, {user.username}!", "success")
             return redirect("/")
 
         flash("Invalid credentials.", 'danger')
-
     return render_template('users/login.html', form=form)
 
 
@@ -132,17 +121,14 @@ def logout():
 @app.route('/users')
 def list_users():
     """Page with listing of users.
-
     Can take a 'q' param in querystring to search by that username.
     """
 
     search = request.args.get('q')
-
     if not search:
         users = User.query.all()
     else:
         users = User.query.filter(User.username.like(f"%{search}%")).all()
-
     return render_template('users/index.html', users=users)
 
 
@@ -170,7 +156,6 @@ def show_likes(user_id):
 
     user = User.query.get_or_404(user_id)
     user_like_ids = [msg.id for msg in user.likes]
-
     messages = (db.session
                 .query(Message, User)
                 .join(User)
@@ -197,31 +182,6 @@ def users_followers(user_id):
 
     user = User.query.get_or_404(user_id)
     return render_template('users/followers.html', user=user)
-
-
-@app.route('/users/follow/<int:follow_id>', methods=['POST'])
-@login_required
-def add_follow(follow_id):
-    """Add a follow for the currently-logged-in user."""
-
-    followed_user = User.query.get_or_404(follow_id)
-    g.user.following.append(followed_user)
-    db.session.commit()
-
-    return redirect(f"/users/{g.user.id}/following")
-
-
-@app.route('/users/stop-following/<int:follow_id>', methods=['POST'])
-@login_required
-def stop_following(follow_id):
-    """Have currently-logged-in-user stop following this user."""
-
-    followed_user = User.query.get(follow_id)
-    g.user.following.remove(followed_user)
-    db.session.commit()
-
-    return redirect(f"/users/{g.user.id}/following")
-
 
 @app.route('/users/profile', methods=["GET", "POST"])
 @login_required
@@ -257,12 +217,78 @@ def delete_user():
     """Delete user."""
 
     do_logout()
-
     db.session.delete(g.user)
     db.session.commit()
 
     return redirect("/signup")
 
+###########################################################################
+# Follow Routes:
+
+@app.route('/users/follow/<int:follow_id>', methods=['POST'])
+@login_required
+def add_follow(follow_id):
+    """Add a follow for the currently-logged-in user."""
+
+    followed_user = User.query.get_or_404(follow_id)
+    if followed_user not in g.user.following:
+        g.user.following.append(followed_user)
+        db.session.commit()
+        return jsonify({"message": "Following successful",
+            "type": "success",
+            "following_user": g.user.serialize(),
+            "followed_user": followed_user.serialize()})
+    return jsonify({"message": "User already followed",
+        "type": "warning",
+        "following_user": g.user.serialize(),
+        "followed_user": followed_user.serialize()})
+
+@app.route('/users/stop-following/<int:follow_id>', methods=['POST'])
+@login_required
+def stop_following(follow_id):
+    """Have currently-logged-in-user stop following this user."""
+
+    followed_user = User.query.get(follow_id)
+    if followed_user in g.user.following:
+        g.user.following.remove(followed_user)
+        db.session.commit()
+        return jsonify({"message": "Un-following successful", 
+            "type": "success", 
+            "following_user": g.user.serialize(), 
+            "followed_user": followed_user.serialize()})
+    return jsonify({"message": "User not currently followed", 
+        "type": "warning", 
+        "following_user": g.user.serialize(), 
+        "followed_user": followed_user.serialize()})
+
+##############################################################################
+# Like routes
+
+@app.route('/users/add_like/<int:message_id>', methods=['POST'])
+@login_required
+def add_like(message_id):
+    """Have currently-logged-in-user like this message."""
+
+    message = Message.query.get_or_404(message_id)
+    if message not in g.user.likes:
+        g.user.likes.append(message)
+        db.session.add(g.user)
+        db.session.commit()
+        return jsonify({"message":f"Message {message.id} successfully liked!", "type": "success"})
+    return jsonify({"message":f"Message {message.id} already liked.", "type": "warning"})
+
+@app.route('/users/remove_like/<int:message_id>', methods=['POST'])
+@login_required
+def remove_like(message_id):
+    """Have currently-logged-in-user stop liking this message."""
+
+    message = Message.query.get_or_404(message_id)
+    if message in g.user.likes:
+        g.user.likes.remove(message)
+        db.session.add(g.user)
+        db.session.commit()
+        return jsonify({"message":f"Message {message.id} successfully unliked!", "type": "success"})
+    return jsonify({"message":f"Message {message.id} not currently liked.", "type": "warning"})
 
 ##############################################################################
 # Messages routes:
@@ -271,7 +297,6 @@ def delete_user():
 @login_required
 def messages_add():
     """Add a message:
-
     Show form if GET. If valid, update message and redirect to user page.
     """
 
@@ -281,11 +306,9 @@ def messages_add():
         msg = Message(text=form.text.data)
         g.user.messages.append(msg)
         db.session.commit()
-
         return redirect(f"/users/{g.user.id}")
 
     return render_template('messages/new.html', form=form)
-
 
 @app.route('/messages/<int:message_id>', methods=["GET"])
 def messages_show(message_id):
@@ -294,52 +317,15 @@ def messages_show(message_id):
     msg = Message.query.get(message_id)
     return render_template('messages/show.html', message=msg)
 
-
 @app.route('/messages/<int:message_id>/delete', methods=["POST"])
 @login_required
 def messages_destroy(message_id):
     """Delete a message."""
 
     msg = Message.query.get(message_id)
-
     db.session.delete(msg)
     db.session.commit()
-
     return redirect(f"/users/{g.user.id}")
-##############################################################################
-# Like routes
-
-@app.route('/users/add_like/<int:message_id>', methods=['POST'])
-@login_required
-def add_like(message_id):
-
-    message = Message.query.get_or_404(message_id)
-    print(message)
-    print(g.user.likes)
-    print(message in g.user.likes)
-    if message not in g.user.likes:
-        g.user.likes.append(message)
-        db.session.add(g.user)
-        db.session.commit()
-        flash('Message successfully liked!', 'success')
-    return redirect('/')
-
-@app.route('/users/remove_like/<int:message_id>', methods=['POST'])
-@login_required
-def remove_like(message_id):
-
-    message = Message.query.get_or_404(message_id)
-    print(message)
-    print(g.user.likes)
-    print(message in g.user.likes)
-    if message in g.user.likes:
-        g.user.likes.remove(message)
-        db.session.add(g.user)
-        db.session.commit()
-        flash('Message successfully unliked!', 'success')
-    return redirect('/')
-
-
 
 ##############################################################################
 # Homepage and error pages
@@ -348,7 +334,6 @@ def remove_like(message_id):
 @app.route('/')
 def homepage():
     """Show homepage:
-
     - anon users: no messages
     - logged in: 100 most recent messages of followed_users
     """
@@ -363,6 +348,7 @@ def homepage():
                     .limit(100)
                     .all())
         likes = [msg.id for msg in g.user.likes]
+        print(likes)
         return render_template('home.html', messages=messages, likes=likes)
 
     else:
