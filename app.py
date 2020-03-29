@@ -84,7 +84,7 @@ def signup():
             flash("Username already taken", 'danger')
             return render_template('users/signup.html', form=form)
         do_login(user)
-        return redirect("/")
+        return redirect(url_for('homepage'))
     else:
         return render_template('users/signup.html', form=form)
 
@@ -101,7 +101,7 @@ def login():
         if user:
             do_login(user)
             flash(f"Hello, {user.username}!", "success")
-            return redirect("/")
+            return redirect(url_for('homepage'))
 
         flash("Invalid credentials.", 'danger')
     return render_template('users/login.html', form=form)
@@ -113,7 +113,7 @@ def logout():
 
     do_logout()
     flash('You have been successfully logged out.')
-    return redirect('/login')
+    return redirect(url_for('login'))
 
 ##############################################################################
 # General user routes:
@@ -195,7 +195,7 @@ def profile():
                                  form.password.data)
         if not user:
             flash('Incorrect Password', 'danger')
-            return redirect('/')
+            return redirect(url_for('homepage'))
         try:
             user.username = form.username.data
             user.email = form.email.data
@@ -204,7 +204,7 @@ def profile():
             user.bio = form.bio.data
             db.session.add(user)
             db.session.commit()
-            return redirect(f'/users/{g.user.id}')
+            return redirect(url_for('users_show', user_id=g.user.id))
         except (InvalidRequestError, IntegrityError):
             db.session.rollback()
             flash("Username/Email already exists", 'danger')
@@ -220,7 +220,7 @@ def delete_user():
     db.session.delete(g.user)
     db.session.commit()
 
-    return redirect("/signup")
+    return redirect(url_for('/signup'))
 
 ###########################################################################
 # Follow Routes:
@@ -306,7 +306,7 @@ def messages_add():
         msg = Message(text=form.text.data)
         g.user.messages.append(msg)
         db.session.commit()
-        return redirect(f"/users/{g.user.id}")
+        return redirect(url_for('users_show', user_id=g.user.id))
 
     return render_template('messages/new.html', form=form)
 
@@ -325,7 +325,8 @@ def messages_destroy(message_id):
     msg = Message.query.get(message_id)
     db.session.delete(msg)
     db.session.commit()
-    return redirect(f"/users/{g.user.id}")
+    return redirect(url_for('users_show', user_id=g.user.id))
+
 
 ##############################################################################
 # Homepage and error pages
@@ -348,7 +349,6 @@ def homepage():
                     .limit(100)
                     .all())
         likes = [msg.id for msg in g.user.likes]
-        print(likes)
         return render_template('home.html', messages=messages, likes=likes)
 
     else:
