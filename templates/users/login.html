@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'macros.html' import render_form_base %}
 
 {% block body_class %}onboarding{% endblock %}
 
@@ -9,15 +10,7 @@
       <h2 class="join-message">Welcome back.</h2>
 
       <form method="POST" id="user_form">
-        {{ form.hidden_tag() }}
-
-        {% for field in form if field.widget.input_type != 'hidden' %}
-          {% for error in field.errors %}
-            <span class="text-danger">{{ error }}</span>
-          {% endfor %}
-          {{ field(placeholder=field.label.text, class="form-control") }}
-        {% endfor %}
-
+        {{ render_form_base(form=form) }}
         <button class="btn btn-primary btn-block btn-lg">Log in</button>
       </form>
     </div>

@@ -117,3 +117,28 @@
   </h4>
 </li>
 {% endmacro %}
+
+{% macro render_form_base(form, confirm_password=False) %}
+  {{ form.hidden_tag() }}
+
+  {% for field in form if field.widget.input_type != 'hidden' and field.name != 'password' %}
+    {% for error in field.errors %}
+      <span class="text-danger">{{ error }}</span>
+    {% endfor %}
+    {{ field(placeholder=field.label.text, class="form-control") }}
+  {% endfor %}
+
+  {% if form.password %}
+    {% if confirm_password %}
+    <p>To confirm changes, enter your password:</p>
+    {% endif %}
+    {% if form.password.errors %}
+      {% for error in form.password.errors %}
+        <span class="text-danger">
+        {{ error }}
+        </span>
+      {% endfor %}
+    {% endif %}
+    {{ form.password(placeholder="Password", class="form-control") }}
+  {% endif %}
+{% endmacro %}
