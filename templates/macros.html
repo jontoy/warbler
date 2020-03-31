@@ -95,7 +95,7 @@
 <li class="stat">
   <p class="small">Messages</p>
   <h4>
-    <a href={{ url_for('users_show', user_id=user.id) }}>{{ user.messages | length }}</a>
+    <a class="messages-display-user" href={{ url_for('users_show', user_id=user.id) }}>{{ user.messages | length }}</a>
   </h4>
 </li>
 <li class="stat">
@@ -107,7 +107,7 @@
 <li class="stat">
   <p class="small">Followers</p>
   <h4>
-    <a href={{ url_for('users_followers', user_id=user.id) }}>{{ user.followers | length }}</a>
+    <a class="follower-display" href={{ url_for('users_followers', user_id=user.id) }}>{{ user.followers | length }}</a>
   </h4>
 </li>
 <li class="stat">

@@ -43,7 +43,7 @@ def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
 
     if CURR_USER_KEY in session:
-        g.user = User.query.get(session[CURR_USER_KEY])
+        g.user = User.query.get_or_404(session[CURR_USER_KEY])
     else:
         g.user = None
 
@@ -133,6 +133,7 @@ def list_users():
 
 
 @app.route('/users/<int:user_id>')
+@login_required
 def users_show(user_id):
     """Show user profile."""
 
@@ -225,7 +226,7 @@ def delete_user():
 ###########################################################################
 # Follow Routes:
 
-@app.route('/users/follow/<int:follow_id>', methods=['POST'])
+@app.route('/users/<int:follow_id>/follow', methods=['POST'])
 @login_required
 def add_follow(follow_id):
     """Add a follow for the currently-logged-in user."""
@@ -243,12 +244,12 @@ def add_follow(follow_id):
         "following_user": g.user.serialize(),
         "followed_user": followed_user.serialize()})
 
-@app.route('/users/stop-following/<int:follow_id>', methods=['POST'])
+@app.route('/users/<int:follow_id>/unfollow', methods=['POST'])
 @login_required
 def stop_following(follow_id):
     """Have currently-logged-in-user stop following this user."""
 
-    followed_user = User.query.get(follow_id)
+    followed_user = User.query.get_or_404(follow_id)
     if followed_user in g.user.following:
         g.user.following.remove(followed_user)
         db.session.commit()
@@ -261,34 +262,6 @@ def stop_following(follow_id):
         "following_user": g.user.serialize(), 
         "followed_user": followed_user.serialize()})
 
-##############################################################################
-# Like routes
-
-@app.route('/users/add_like/<int:message_id>', methods=['POST'])
-@login_required
-def add_like(message_id):
-    """Have currently-logged-in-user like this message."""
-
-    message = Message.query.get_or_404(message_id)
-    if message not in g.user.likes:
-        g.user.likes.append(message)
-        db.session.add(g.user)
-        db.session.commit()
-        return jsonify({"message":f"Message {message.id} successfully liked!", "type": "success"})
-    return jsonify({"message":f"Message {message.id} already liked.", "type": "warning"})
-
-@app.route('/users/remove_like/<int:message_id>', methods=['POST'])
-@login_required
-def remove_like(message_id):
-    """Have currently-logged-in-user stop liking this message."""
-
-    message = Message.query.get_or_404(message_id)
-    if message in g.user.likes:
-        g.user.likes.remove(message)
-        db.session.add(g.user)
-        db.session.commit()
-        return jsonify({"message":f"Message {message.id} successfully unliked!", "type": "success"})
-    return jsonify({"message":f"Message {message.id} not currently liked.", "type": "warning"})
 
 ##############################################################################
 # Messages routes:
@@ -314,7 +287,7 @@ def messages_add():
 def messages_show(message_id):
     """Show a message."""
 
-    msg = Message.query.get(message_id)
+    msg = Message.query.get_or_404(message_id)
     return render_template('messages/show.html', message=msg)
 
 @app.route('/messages/<int:message_id>/delete', methods=["POST"])
@@ -323,10 +296,38 @@ def messages_destroy(message_id):
     """Delete a message."""
 
     msg = Message.query.get(message_id)
+    if not msg.user_id == g.user.id:
+        flash('Access Denied: You are not the author of this message')
+        return redirect(url_for('homepage'))
     db.session.delete(msg)
     db.session.commit()
     return redirect(url_for('users_show', user_id=g.user.id))
 
+@app.route('/messages/<int:message_id>/like', methods=['POST'])
+@login_required
+def add_like(message_id):
+    """Have currently-logged-in-user like this message."""
+    message = Message.query.get_or_404(message_id)
+
+    if message not in g.user.likes:
+        g.user.likes.append(message)
+        db.session.add(g.user)
+        db.session.commit()
+        return jsonify({"message":f"Message {message.id} successfully liked!", "type": "success"})
+    return jsonify({"message":f"Message {message.id} already liked.", "type": "warning"})
+
+@app.route('/messages/<int:message_id>/unlike', methods=['POST'])
+@login_required
+def remove_like(message_id):
+    """Have currently-logged-in-user stop liking this message."""
+
+    message = Message.query.get_or_404(message_id)
+    if message in g.user.likes:
+        g.user.likes.remove(message)
+        db.session.add(g.user)
+        db.session.commit()
+        return jsonify({"message":f"Message {message.id} successfully unliked!", "type": "success"})
+    return jsonify({"message":f"Message {message.id} not currently liked.", "type": "warning"})
 
 ##############################################################################
 # Homepage and error pages

@@ -72,6 +72,26 @@ class MessageViewTestCase(TestCase):
             msg = Message.query.one()
             self.assertEqual(msg.text, "Hello")
 
+    def test_add_message_no_user(self):
+        """Does posting a new message function for non-users correctly?"""
+        with self.client as c:
+
+            resp = c.post("/messages/new", data={"text": "Hello"}, follow_redirects=True)
+            html = resp.get_data(as_text=True)
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Access unauthorized", html)
+
+    def test_add_message_invalid_user(self):
+        """Does posting a new message function for invalid-users correctly?"""
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = 1234567 # user does not exist
+
+            resp = c.post("/messages/new", data={"text": "Hello"}, follow_redirects=True)
+            html = resp.get_data(as_text=True)
+            self.assertEqual(resp.status_code, 404)
+            self.assertIn("Page not found", html)
+
     def test_new_message_form_authorized(self):
         """Does the new message form display to authorized users correctly?"""
 
@@ -88,8 +108,8 @@ class MessageViewTestCase(TestCase):
             self.assertIn("s happening?", html)
             self.assertIn("Add my message!", html)
     
-    def test_new_message_form_unauthorized(self):
-        """Does the new message form display to authorized users correctly?"""
+    def test_new_message_form_no_user(self):
+        """Does the new message form display to non-users correctly?"""
 
         with self.client as c:
 
@@ -101,7 +121,16 @@ class MessageViewTestCase(TestCase):
             self.assertEqual(resp.status_code, 200)
 
             self.assertIn('Access unauthorized', html)
-            self.assertIn("New to Warbler?", html)
+
+    def test_add_message_form_invalid_user(self):
+        """Does the new message form display to non-users correctly?"""
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = 1234567 # user does not exist
+
+            resp = c.get("/messages/new", follow_redirects=True)
+            html = resp.get_data(as_text=True)
+            self.assertEqual(resp.status_code, 404)
 
     def test_show_message_self(self):
         """Does message show route display correct info for own messages"""
@@ -118,7 +147,7 @@ class MessageViewTestCase(TestCase):
             self.assertEqual(resp.status_code, 200)
             self.assertIn('Hello', html)
             self.assertIn('Delete', html)
-            self.assertIn(f'<a href="/users/{self.testuser.id}">@{self.testuser.username}</a>', html)
+            self.assertIn(f'<a href=/users/{self.testuser.id}>@{self.testuser.username}</a>', html)
 
     def test_show_message_other(self):
         """Does message show route display correct info for others' messages"""
@@ -138,4 +167,64 @@ class MessageViewTestCase(TestCase):
             self.assertEqual(resp.status_code, 200)
             self.assertIn('Goodbye', html)
             self.assertNotIn('Delete', html)
-            self.assertIn(f'<a href="/users/{new_user.id}">@{new_user.username}</a>', html)
+            self.assertIn(f'<a href=/users/{new_user.id}>@{new_user.username}</a>', html)
+
+    def test_show_invalid_message(self):
+        """Does message show route display correct info an invalid message id?"""
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+            
+            resp = c.get('/messages/1234567')
+            html = resp.get_data(as_text=True)
+            self.assertEqual(resp.status_code, 404)
+
+    def test_delete_message(self):
+        """Does message delete route function correctly for author?"""
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+            
+            new_message = Message(text='Hello', user_id=self.testuser.id)
+            db.session.add(new_message)
+            db.session.commit()
+
+            resp = c.post(f'/messages/{new_message.id}/delete', follow_redirects=True)
+            self.assertEqual(resp.status_code, 200)
+            msgs = Message.query.all()
+            self.assertEqual(len(msgs), 0)
+
+    def test_delete_message_no_user(self):
+        """Does message delete route display correct info for non-user"""
+        with self.client as c:
+
+            new_message = Message(text='Hello', user_id=self.testuser.id)
+            db.session.add(new_message)
+            db.session.commit()
+
+            resp = c.post(f'/messages/{new_message.id}/delete', follow_redirects=True)
+            html = resp.get_data(as_text=True)
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Access unauthorized", html)
+            msgs = Message.query.all()
+            self.assertEqual(len(msgs), 1)
+
+    def test_delete_message_other(self):
+        """Does message delete route display correct info for others' messages"""
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            new_user = User(username='testuser2', email='test2@test.com', password='testuser2')
+            db.session.add(new_user)
+            db.session.commit()
+            new_message = Message(text='Goodbye', user_id=new_user.id)
+            db.session.add(new_message)
+            db.session.commit()
+
+            resp = c.post(f'/messages/{new_message.id}/delete', follow_redirects=True)
+            html = resp.get_data(as_text=True)
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Access Denied', html)
+            msgs = Message.query.all()
+            self.assertEqual(len(msgs), 1)

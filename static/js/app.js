@@ -18,7 +18,7 @@ $(document.body).on('click', '.like', async (e) => {
     const target = findCorrectElement('like', e.target);
     if (target){
         const messageId = target.dataset.messageId;
-        const res = await axios.post(`/users/add_like/${messageId}`);
+        const res = await axios.post(`/messages/${messageId}/like`);
         target.classList.add('unlike');
         target.classList.remove('like');
         target.innerHTML = 
@@ -39,7 +39,7 @@ $(document.body).on('click', '.unlike', async (e) => {
     const target = findCorrectElement('unlike', e.target);
     if (target){
         const messageId = target.dataset.messageId;
-        const res = await axios.post(`/users/remove_like/${messageId}`);
+        const res = await axios.post(`/messages/${messageId}/unlike`);
         target.classList.add('like');
         target.classList.remove('unlike');
         target.innerHTML = 
@@ -60,7 +60,7 @@ $(document.body).on('click', '.unfollow', async (e) => {
     const target = findCorrectElement('unfollow', e.target);
     if (target){
         const userId = target.dataset.userId;
-        const res = await axios.post(`/users/stop-following/${userId}`);
+        const res = await axios.post(`/users/${userId}/unfollow`);
         target.classList.add('follow');
         target.classList.remove('unfollow');
         target.innerHTML = 
@@ -81,7 +81,7 @@ $(document.body).on('click', '.follow', async (e) => {
     const target = findCorrectElement('follow', e.target);
     if (target){
         const userId = target.dataset.userId;
-        const res = await axios.post(`/users/follow/${userId}`);
+        const res = await axios.post(`/users/${userId}/follow`);
         target.classList.add('unfollow');
         target.classList.remove('follow');
         target.innerHTML = 

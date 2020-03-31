@@ -41,7 +41,7 @@ class Likes(db.Model):
 
     user_id = db.Column(
         db.Integer,
-        db.ForeignKey('users.id', ondelete='cascade')
+        db.ForeignKey('users.id', ondelete='cascade'),
     )
 
     message_id = db.Column(
@@ -95,7 +95,7 @@ class User(db.Model):
         nullable=False,
     )
 
-    messages = db.relationship('Message', passive_deletes=True)
+    messages = db.relationship('Message', passive_deletes=True, lazy='joined')
 
     followers = db.relationship(
         "User",
