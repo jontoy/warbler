@@ -215,7 +215,38 @@ class Message(db.Model):
     def serialize(self):
         return {"id":self.id, "text":self.text, "timestamp":self.timestamp, "user_id": self.user_id}
 
+class DirectMessage(db.Model):
+    """A direct message between two users."""
 
+    __tablename__ = 'direct_messages'
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
+    text = db.Column(
+        db.String(140),
+        nullable=False,
+    )
+
+    timestamp = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=datetime.utcnow(),
+    )
+
+    author_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    recipient_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+
+    author = db.relationship('User', backref='outbox', foreign_keys=[author_id])
+    recipient = db.relationship('User', backref='inbox', foreign_keys=[recipient_id])
+
+    def serialize(self):
+        return {"id":self.id, "text":self.text, "timestamp":self.timestamp, "author_id": self.author_id, "recipient_id": self.recipient}
 def connect_db(app):
     """Connect this database to provided Flask app.
 
