@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, TextAreaField
-from wtforms.validators import DataRequired, Email, Length, Optional, URL
+from wtforms.validators import DataRequired, Email, Length, Optional, URL, EqualTo
 
 
 class MessageForm(FlaskForm):
@@ -27,6 +27,12 @@ class UserEditForm(FlaskForm):
     bio = TextAreaField('User Bio', validators=[Optional()])
     password = PasswordField('Current Password', validators=[DataRequired(), Length(min=6)])
 
+class EditPasswordForm(FlaskForm):
+    """Form for changing existing user's password."""
+
+    old_password = PasswordField('Current Password', validators=[Length(min=6)])
+    new_password = PasswordField('New Password', validators=[Length(min=6), EqualTo('confirm', 'New passwords much match!')])
+    confirm = PasswordField('Confirm New Password', validators=[Length(min=6)])
 
 class LoginForm(FlaskForm):
     """Login form."""
