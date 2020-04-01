@@ -1,0 +1,13 @@
+{% from 'macros.html' import render_dm %}
+{% extends 'users/detail.html' %}
+{% block user_details %}
+  <div class="col-sm-6">
+    <ul class="list-group" id="dms">
+
+      {% for dm in dms %}
+        {{ render_dm(dm, user)}}
+      {% endfor %}
+
+    </ul>
+  </div>
+{% endblock %}

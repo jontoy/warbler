@@ -5,7 +5,7 @@ from flask import Flask, render_template, request, flash, redirect, session, g, 
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
 from functools import wraps
 from forms import UserAddForm, UserEditForm, LoginForm, MessageForm
-from models import db, connect_db, User, Message
+from models import db, connect_db, User, Message, DirectMessage
 
 CURR_USER_KEY = "curr_user"
 
@@ -184,6 +184,20 @@ def users_followers(user_id):
     user = User.query.get_or_404(user_id)
     return render_template('users/followers.html', user=user)
 
+@app.route('/users/inbox')
+@login_required
+def show_inbox():
+    """Show list of direct messages sent to logged in user"""
+
+    return render_template('/users/dms.html', user=g.user, dms=g.user.inbox)
+
+@app.route('/users/outbox')
+@login_required
+def show_outbox():
+    """Show list of direct messages sent by logged in user"""
+
+    return render_template('/users/dms.html', user=g.user, dms=g.user.outbox)
+
 @app.route('/users/profile', methods=["GET", "POST"])
 @login_required
 def profile():
@@ -328,6 +342,24 @@ def remove_like(message_id):
         db.session.commit()
         return jsonify({"message":f"Message {message.id} successfully unliked!", "type": "success"})
     return jsonify({"message":f"Message {message.id} not currently liked.", "type": "warning"})
+
+@app.route('/dm/<int:user_id>/new', methods=["GET", "POST"])
+@login_required
+def direct_message(user_id):
+    """Send a direct message:
+    Show form if GET. If valid, update message and redirect to logged in user's page.
+    """
+    recipient = User.query.get_or_404(user_id)
+    form = MessageForm()
+
+    if form.validate_on_submit():
+        dm = DirectMessage(author_id=g.user.id, recipient_id=user_id, text=form.text.data)
+        db.session.add(dm)
+        db.session.commit()
+
+        return redirect(url_for('users_show', user_id=g.user.id))
+
+    return render_template('messages/new.html', recipient=recipient, form=form)
 
 ##############################################################################
 # Homepage and error pages

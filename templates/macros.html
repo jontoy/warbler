@@ -55,8 +55,29 @@
       {{ render_like_button(user, message, likes)}}
     </div>
   </div>
+</li>
+{% endmacro %}
 
-
+{% macro render_dm(dm, user) %}
+<li class="list-group-item">
+  <div class="row justify-content-between container-fluid px-0">
+    <div class="col-2">
+      <a href={{ url_for('users_show', user_id=dm.author.id) }}>
+        <img src="{{ dm.author.image_url }}" alt="" class="timeline-image">
+      </a>
+    </div>
+    <div class="col">
+        <div class="message-area">
+          <span>
+          <a href={{ url_for('users_show', user_id=dm.author_id) }}>@{{ dm.author.username }}</a>
+          -> 
+          <a href={{ url_for('users_show', user_id=dm.recipient_id) }}>@{{ dm.recipient.username }}</a>
+          </span>
+          <span class="text-muted">{{ dm.timestamp.strftime('%d %B %Y') }}</span>
+          <p>{{ dm.text }}</p>
+        </div>
+    </div>
+  </div>
 </li>
 {% endmacro %}
 
@@ -87,6 +108,7 @@
     <button class="btn btn-outline-danger ml-2">Delete Profile</button>
   </form>
   {% elif g.user %}
+    <a href={{ url_for('direct_message', user_id=user.id)}} class="btn btn-outline-primary">Send Message</a>
     {{ render_follow_button(user) }}
   {% endif %}
 {% endmacro %}
@@ -116,6 +138,20 @@
     <a class="likes-display" href={{ url_for('show_likes', user_id=user.id) }}>{{ user.likes | length }}</a>
   </h4>
 </li>
+{% if g.user.id == user.id %}
+<li class="stat">
+  <p class="small">Inbox</p>
+  <h4>
+    <a class="follower-display" href={{ url_for('show_inbox')}}>{{ user.inbox | length }}</a>
+  </h4>
+</li>
+<li class="stat">
+  <p class="small">Outbox</p>
+  <h4>
+    <a class="likes-display" href={{ url_for('show_outbox') }}>{{ user.outbox | length }}</a>
+  </h4>
+</li>
+{% endif %}
 {% endmacro %}
 
 {% macro render_form_base(form, confirm_password=False) %}
