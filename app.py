@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, flash, redirect, session, g, 
 # from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
 from functools import wraps
-from forms import UserAddForm, UserEditForm, LoginForm, MessageForm
+from forms import UserAddForm, UserEditForm, LoginForm, MessageForm, EditPasswordForm
 from models import db, connect_db, User, Message, DirectMessage
 
 CURR_USER_KEY = "curr_user"
@@ -225,6 +225,31 @@ def profile():
             flash("Username/Email already exists", 'danger')
 
     return render_template('users/edit.html', form=form, user_id=g.user.id)
+
+@app.route('/users/password', methods=["GET", "POST"])
+@login_required
+def change_password():
+    """Update profile for current user."""
+
+    form = EditPasswordForm(obj=g.user)
+
+    if form.validate_on_submit():
+        user = User.change_password(g.user.username,
+                                 form.old_password.data,
+                                 form.new_password.data,
+                                 form.confirm.data)
+        if not user:
+            flash('Incorrect Password', 'danger')
+            return redirect(url_for('homepage'))
+        try:
+            db.session.commit()
+            flash('Password successfully changed', 'success')
+            return redirect(url_for('users_show', user_id=g.user.id))
+        except (InvalidRequestError, IntegrityError):
+            db.session.rollback()
+            flash("Something went wrong. Session rolled back.", 'danger')
+
+    return render_template('users/password.html', form=form, user_id=g.user.id)
 
 @app.route('/users/delete', methods=["POST"])
 @login_required

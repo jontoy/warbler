@@ -181,7 +181,30 @@ class User(db.Model):
                 return user
 
         return False
+    @classmethod
+    def change_password(cls, username, old_password, new_password, new_password_confirm):
+        """Change user's password from old_password to new_password.
 
+        Checks if original user credentials match and that new password matches
+        the password confirmation. If successful, adds changed password to the
+        system and returns user object.
+
+        If matching user is not found, password is wrong or new password is 
+        incorrectly confirmed, returns False.
+        """
+        if not new_password == new_password_confirm:
+            return False
+        user = cls.query.filter_by(username=username).first()
+
+        if user:
+            is_auth = bcrypt.check_password_hash(user.password, old_password)
+            if is_auth:
+                hashed_pwd = bcrypt.generate_password_hash(new_password).decode('UTF-8')
+                user.password = hashed_pwd
+                db.session.add(user)
+                return user
+
+        return False
 
 class Message(db.Model):
     """An individual message ("warble")."""
